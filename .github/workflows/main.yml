@@ -1,0 +1,56 @@
+# This is a Github actions workflow file
+name: vprofile actions
+on: workflow_dispatch
+env:
+  AWS_REGION: us-east-2
+  #this is the respository you created in ECR at Start.
+  ECR_REPOSITORY: vprofileapp
+  EKS_CLUSTER: vprofile-eks
+
+# Jobs define the individual tasks that will be run as part of the workflow
+jobs:
+  Testing : 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      #Ubuntu comes with maven pre-installed
+      - name: Maven Test
+        run: mvn test
+      
+      - name: check style
+        run: mvn checkstyle:checkstyle
+
+      - name: set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      
+      - name: set up sonar Scanner
+        uses: warchant/setup-sonar-scanner@v8
+      
+      - name: run sonarqube Scanner
+        run: sonar-scanner \
+            -Dsonar.host.url=${{ secrets.SONAR_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=src/ \
+            -Dsonar.junit.reportPaths=target/surefire-reports/ \
+            -Dsonar.jacoco.reportPaths=target/jacoco.exec/ \
+            -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml
+            -Dsonar.java.binaries=target/test-classes/com/visualpathit/account
+      - name : Check Quality Gate Status
+        id: sonaerqube_quality_gate_check
+        uses: sonarsource/sonar-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+        
+
+
+
